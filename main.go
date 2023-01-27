@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -31,27 +32,21 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	api := clientset.CoreV1()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fmt.Println(api)
-	// fmt.Println(ctx)
-
-	nss, err := api.Namespaces().List(ctx, metav1.ListOptions{})
+	items, err := ListNamespaces(clientset, ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// fmt.Println(nss)
-
-	if len(nss.Items) == 0 {
+	if items == nil {
 		fmt.Println("No namespaces found!")
 		return
 	}
 
-	fmt.Printf("There are %d namespaces in the cluster\n", len(nss.Items))
-	for _, ns := range nss.Items {
+	fmt.Printf("There are %d namespaces in the cluster\n", len(items))
+	for _, ns := range items {
 		fmt.Printf("namespace %s\n", ns.GetName())
 		labels := ns.GetLabels()
 		// fmt.Printf("\tlabels: %v\n", labels)
@@ -66,4 +61,15 @@ func main() {
 	// 	fmt.Printf("namespace %s\n", nss.Items[i].GetName())
 	// }
 
+}
+
+func ListNamespaces(clientset *kubernetes.Clientset,
+	ctx context.Context) ([]v1.Namespace, error) {
+
+	list, err := clientset.CoreV1().Namespaces().
+		List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
 }
