@@ -10,27 +10,41 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var kubeconfig string
+var config *rest.Config
+var clientset *kubernetes.Clientset
 
 func main() {
 
-	// kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
-	// /home/zhs2si/share/Projects/kubeconfig/bmlp-ops.yaml
-	kubeconfig := filepath.Join(os.Getenv("HOME"), "share", "Projects", "kubeconfig", "bmlp-ops.yaml")
+	kubeconfig = filepath.Join(os.Getenv("HOME"), "share", "Projects", "kubeconfig", "bmlp-ops.yaml")
 
-	// bootstrap config
-	fmt.Println()
-	fmt.Println("Using kubeconfig: ", kubeconfig)
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		panic(err.Error())
-	}
+	// If kubeconfig is set, will use the kubeconfig file at that location.
+	// Otherwise will assume running in cluster and use the cluster provided kubeconfig.
+	// Will log an error and exit if there is an error creating the rest.Config.
+	if kubeconfig != "" {
+		// bootstrap config
+		fmt.Println()
+		fmt.Println("Using kubeconfig: ", kubeconfig)
+		var err error
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			panic(err.Error())
+		}
 
-	// create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatal(err)
+		// create the clientset
+		clientset, err = kubernetes.NewForConfig(config)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		// GetConfigOrDie creates a *rest.Config for talking to a Kubernetes apiserver.
+		config = ctrl.GetConfigOrDie()
+		clientset = kubernetes.NewForConfigOrDie(config)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
